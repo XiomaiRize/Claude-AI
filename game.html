@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Life Simulation - Infinite Possibilities</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .game-container {
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00ff00;
+            border-radius: 10px;
+            max-width: 900px;
+            width: 100%;
+            padding: 30px;
+            box-shadow: 0 0 30px rgba(0, 255, 0, 0.3);
+        }
+
+        .header {
+            text-align: center;
+            color: #00ff00;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #00ff00;
+            padding-bottom: 20px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px #00ff00;
+        }
+
+        .header p {
+            color: #00dd00;
+            font-size: 14px;
+        }
+
+        .story-display {
+            background: rgba(0, 20, 0, 0.6);
+            border: 1px solid #00aa00;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+            min-height: 300px;
+            max-height: 500px;
+            overflow-y: auto;
+            color: #00ff00;
+            line-height: 1.6;
+        }
+
+        .story-entry {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(0, 50, 0, 0.3);
+            border-left: 3px solid #00ff00;
+            border-radius: 3px;
+        }
+
+        .story-entry.player {
+            border-left-color: #00aaff;
+            background: rgba(0, 30, 50, 0.3);
+        }
+
+        .story-entry .label {
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #ffff00;
+        }
+
+        .story-entry.player .label {
+            color: #00ddff;
+        }
+
+        .input-area {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        #actionInput {
+            flex: 1;
+            background: rgba(0, 20, 0, 0.8);
+            border: 2px solid #00aa00;
+            border-radius: 5px;
+            padding: 15px;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+        }
+
+        #actionInput:focus {
+            outline: none;
+            border-color: #00ff00;
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+        }
+
+        button {
+            background: #00aa00;
+            color: #000;
+            border: none;
+            border-radius: 5px;
+            padding: 15px 30px;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            background: #00ff00;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.6);
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .status {
+            color: #ffff00;
+            text-align: center;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+
+        .intro-screen {
+            text-align: center;
+            color: #00ff00;
+        }
+
+        .intro-screen h2 {
+            margin-bottom: 20px;
+            color: #ffff00;
+        }
+
+        .intro-screen p {
+            margin-bottom: 30px;
+            line-height: 1.8;
+        }
+
+        #characterInput {
+            width: 100%;
+            background: rgba(0, 20, 0, 0.8);
+            border: 2px solid #00aa00;
+            border-radius: 5px;
+            padding: 15px;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+
+        #characterInput:focus {
+            outline: none;
+            border-color: #00ff00;
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="header">
+            <h1>⚡ LIFE SIMULATION ⚡</h1>
+            <p>INFINITE POSSIBILITIES - Powered by Claude AI</p>
+        </div>
+
+        <div id="introScreen" class="intro-screen">
+            <h2>Welcome to Your New Life!</h2>
+            <p>
+                In this simulation, you can be anyone, do anything, and experience infinite possibilities.<br>
+                Your choices matter, and Claude AI will simulate the outcomes of your actions.<br><br>
+                Every decision shapes your story. Every action has consequences.<br>
+                The world is yours to explore.
+            </p>
+            <input type="text" id="characterInput" placeholder="Who are you? (name, age, background, situation) - or leave blank for random">
+            <button onclick="startGame()">BEGIN YOUR LIFE</button>
+        </div>
+
+        <div id="gameScreen" class="hidden">
+            <div class="story-display" id="storyDisplay">
+                <div class="story-entry">
+                    <div class="label">SYSTEM:</div>
+                    <div>Initializing simulation...</div>
+                </div>
+            </div>
+
+            <div class="input-area">
+                <input type="text" id="actionInput" placeholder="What do you do?" onkeypress="handleEnter(event)">
+                <button onclick="submitAction()">TAKE ACTION</button>
+            </div>
+
+            <div class="controls">
+                <button onclick="saveGame()">SAVE GAME</button>
+                <button onclick="loadGame()">LOAD GAME</button>
+                <button onclick="resetGame()">NEW LIFE</button>
+            </div>
+
+            <div class="status" id="statusText">Ready for your action...</div>
+        </div>
+    </div>
+
+    <script>
+        let gameState = {
+            started: false,
+            character: '',
+            history: []
+        };
+
+        function startGame() {
+            const character = document.getElementById('characterInput').value.trim();
+            gameState.character = character || 'random';
+            gameState.started = true;
+
+            document.getElementById('introScreen').classList.add('hidden');
+            document.getElementById('gameScreen').classList.remove('hidden');
+
+            // Save to file for Claude to read
+            saveToFile('START_GAME', gameState.character);
+
+            addToStory('SYSTEM', 'Game started! Waiting for Claude AI to create your opening scenario...');
+            updateStatus('⏳ Waiting for Claude AI to respond...');
+        }
+
+        function submitAction() {
+            const input = document.getElementById('actionInput');
+            const action = input.value.trim();
+
+            if (!action) {
+                updateStatus('❌ Please enter an action!');
+                return;
+            }
+
+            addToStory('YOU', action, true);
+            input.value = '';
+
+            // Save action for Claude to read
+            saveToFile('ACTION', action);
+
+            updateStatus('⏳ Waiting for Claude AI to simulate your action...');
+        }
+
+        function handleEnter(event) {
+            if (event.key === 'Enter') {
+                submitAction();
+            }
+        }
+
+        function addToStory(speaker, text, isPlayer = false) {
+            const display = document.getElementById('storyDisplay');
+            const entry = document.createElement('div');
+            entry.className = 'story-entry' + (isPlayer ? ' player' : '');
+            entry.innerHTML = `
+                <div class="label">${speaker}:</div>
+                <div>${text}</div>
+            `;
+            display.appendChild(entry);
+            display.scrollTop = display.scrollHeight;
+
+            // Add to history
+            gameState.history.push({ speaker, text, isPlayer });
+        }
+
+        function updateStatus(message) {
+            document.getElementById('statusText').textContent = message;
+        }
+
+        function saveToFile(type, content) {
+            // Create action log
+            const timestamp = new Date().toISOString();
+            const logEntry = {
+                timestamp,
+                type,
+                content,
+                gameState
+            };
+
+            // Save to localStorage for now
+            localStorage.setItem('currentAction', JSON.stringify(logEntry));
+            localStorage.setItem('gameState', JSON.stringify(gameState));
+
+            console.log('Action logged:', logEntry);
+        }
+
+        function saveGame() {
+            localStorage.setItem('savedGame', JSON.stringify(gameState));
+            updateStatus('✅ Game saved!');
+            setTimeout(() => updateStatus('Ready for your action...'), 2000);
+        }
+
+        function loadGame() {
+            const saved = localStorage.getItem('savedGame');
+            if (saved) {
+                gameState = JSON.parse(saved);
+                rebuildStoryDisplay();
+                updateStatus('✅ Game loaded!');
+                setTimeout(() => updateStatus('Ready for your action...'), 2000);
+            } else {
+                updateStatus('❌ No saved game found!');
+            }
+        }
+
+        function resetGame() {
+            if (confirm('Are you sure you want to start a new life? Current progress will be lost.')) {
+                localStorage.clear();
+                location.reload();
+            }
+        }
+
+        function rebuildStoryDisplay() {
+            const display = document.getElementById('storyDisplay');
+            display.innerHTML = '';
+            gameState.history.forEach(entry => {
+                addToStory(entry.speaker, entry.text, entry.isPlayer);
+            });
+        }
+
+        // Check for Claude's response
+        function checkForResponse() {
+            const response = localStorage.getItem('claudeResponse');
+            if (response) {
+                const data = JSON.parse(response);
+                addToStory('CLAUDE AI', data.content);
+                updateStatus('✅ Ready for your next action...');
+                localStorage.removeItem('claudeResponse');
+            }
+        }
+
+        // Check every 2 seconds for responses
+        setInterval(checkForResponse, 2000);
+
+        // Load game state on startup
+        window.onload = function() {
+            const saved = localStorage.getItem('gameState');
+            if (saved) {
+                const shouldContinue = confirm('Continue your previous life?');
+                if (shouldContinue) {
+                    loadGame();
+                    document.getElementById('introScreen').classList.add('hidden');
+                    document.getElementById('gameScreen').classList.remove('hidden');
+                }
+            }
+        };
+    </script>
+</body>
+</html>
