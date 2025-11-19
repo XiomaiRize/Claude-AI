@@ -7,6 +7,7 @@ A revolutionary text-based RPG where **Claude AI serves as the game master** and
 Unlike traditional RPGs, this game has a **living, breathing codebase** that evolves during play:
 
 - **Live Code Modification**: As the AI game master, I (Claude) can add new items, abilities, enemies, and mechanics while you're playing
+- **Realistic Simulation Engine**: Advanced NPC emotions, world states, and condition tracking that I actively manage
 - **Dynamic Content Loading**: The game automatically reloads modules when code changes
 - **Emergent Storytelling**: The narrative adapts based on your choices and the content I create for you
 - **Unlimited Possibilities**: Not limited by pre-programmed content - new content can be created on demand
@@ -21,7 +22,8 @@ rpg_engine/
 ├── combat.py       - Combat system and enemies (EDITABLE!)
 ├── items.py        - Weapons, armor, consumables (EDITABLE!)
 ├── abilities.py    - Special attacks and magic (EDITABLE!)
-└── world.py        - Locations, NPCs, quests (EDITABLE!)
+├── world.py        - Locations, NPCs, quests (EDITABLE!)
+└── simulation.py   - NPC emotions, world states, conditions (Claude manages!)
 
 rpg_game.py         - Main game runner with module reloading
 ```
@@ -71,6 +73,7 @@ Just type what you want to do naturally!
 ### Special Commands
 
 - `status` - Show character stats
+- `simulation` or `sim` - **View NPC emotions, world state, and conditions**
 - `inventory` - View your items
 - `abilities` - List your abilities
 - `save` - Save the game
@@ -135,6 +138,71 @@ legendary Flameblade you've heard about in stories!
 - **NPCs** with dialogue and quests
 - **Shops** to buy equipment
 - **Dynamic events** based on your actions
+
+### Simulation Engine (The Secret Sauce!)
+
+The game features a **realistic simulation** that Claude actively manages:
+
+#### **NPC Emotions** (0-10 scale)
+Every NPC tracks how they feel about you:
+- **Affection**: How much they like you
+- **Trust**: How much they trust you
+- **Respect**: How much they respect your abilities
+- **Fear**: How afraid they are of you
+- **Annoyance**: How annoyed/frustrated they are
+
+**Example:**
+```
+> simulation
+
+👥 NPC RELATIONSHIPS:
+
+  Blacksmith (unfriendly):
+    Affection: 3/10    (doesn't like you much)
+    Trust: 5/10        (neutral)
+    Respect: 2/10      (doesn't respect you)
+    Annoyance: 8/10    (very annoyed!)
+    Times Met: 7
+
+Result: She refuses to sell to you or charges extra!
+```
+
+#### **Player Conditions**
+- `has_mana`: Can you cast magic? (true/false)
+- `is_bleeding`: Taking damage over time
+- `is_cursed`: Under a curse
+- `is_exhausted`: Too tired to fight effectively
+- `is_wanted`: Criminal status - guards attack on sight!
+
+These affect what you can do - can't cast spells if `has_mana=false`!
+
+#### **World State**
+- **Time of day**: Shops close at night, monsters stronger in darkness
+- **Weather**: Affects travel and combat
+- **Player fame**: -10 (infamous villain) to +10 (legendary hero)
+- **Village safety**: Are the villagers in danger?
+
+**See full documentation**: `SIMULATION_ENGINE.md`
+
+#### How It Works
+
+As you play, Claude updates these variables based on your actions:
+
+```
+YOU: "I refuse to help the blacksmith again"
+
+CLAUDE: "Fine! I don't need your help anyway!" she snaps.
+[blacksmith.annoyance: 6→9]
+
+Later...
+
+YOU: "I want to buy a weapon"
+
+CLAUDE: She crosses her arms. "Not selling to you. Get out!"
+[Action blocked: annoyance too high!]
+```
+
+Type `simulation` or `sim` to see all current values!
 
 ### Live Code Modification
 

@@ -21,6 +21,7 @@ from dotenv import load_dotenv
 from rpg_engine.character import Character
 from rpg_engine.combat import CombatSystem, create_enemy
 from rpg_engine.world import GameState, get_location, get_npc, LOCATIONS
+from rpg_engine.simulation import SimulationEngine
 from rpg_engine import items, abilities
 
 load_dotenv()
@@ -46,8 +47,11 @@ class DynamicRPG:
         self.in_combat = False
         self.combat = None
 
+        # Simulation engine - YOU (Claude) manage this!
+        self.simulation = SimulationEngine()
+
         # System prompt for Claude
-        self.system_prompt = """You are an expert RPG Game Master for a dynamic text-based RPG.
+        self.system_prompt = """You are an expert RPG Game Master for a dynamic text-based RPG with REALISTIC SIMULATION.
 
 Your role:
 1. Narrate the story with vivid, immersive descriptions
@@ -56,12 +60,54 @@ Your role:
 4. React to player actions with appropriate consequences
 5. Keep the narrative engaging and the world feeling alive
 6. YOU CAN MODIFY THE GAME'S CODE in real-time to add new items, abilities, enemies, or mechanics!
+7. YOU ACTIVELY MANAGE THE SIMULATION ENGINE - tracking NPC emotions, world states, and player conditions
+
+=== SIMULATION ENGINE (YOU CONTROL THIS!) ===
+
+You have access to a simulation engine that tracks realistic variables:
+
+NPC EMOTIONS (0-10 scale):
+- affection: How much they like the player
+- trust: How much they trust the player
+- respect: How much they respect the player
+- fear: How afraid they are of the player
+- annoyance: How annoyed they are with the player
+
+PLAYER CONDITIONS (boolean):
+- has_mana: Can cast magic (true/false)
+- is_bleeding: Taking damage over time
+- is_poisoned: Poisoned status
+- is_cursed: Under a curse
+- is_exhausted: Too tired to fight effectively
+- is_wanted: Criminal, guards will attack
+
+WORLD STATE:
+- time_of_day: dawn/morning/midday/afternoon/evening/night/midnight
+- weather: clear/raining/storming/snowing/foggy
+- player_fame: -10 to 10 (negative = infamy)
+- village_safe: Are villagers safe?
+- dragon_alive: Is the dragon still alive?
+
+HOW TO USE SIMULATION:
+When narrating, mention simulation changes naturally:
+- "The blacksmith's annoyance increases to 7 as you refuse her offer again"
+- "Your has_mana becomes false as you exhaust your magical reserves"
+- "The village elder's trust in you rises to 8 after you save the village"
+- "Time advances to evening as you finish your journey"
+- "You're now bleeding=true from the deep wound"
+
+These variables affect what actions are possible!
+- Can't cast spells if has_mana=false
+- NPCs with high annoyance may refuse to help
+- Guards attack if is_wanted=true
+- Shops closed at night
 
 When narrating:
 - Keep responses to 2-4 paragraphs
 - Paint vivid scenes
 - Give the player clear options
 - Make the world feel reactive and dynamic
+- MENTION simulation changes when relevant!
 
 When you want to add new content to the game:
 - Tell me you're modifying the code
@@ -69,7 +115,7 @@ When you want to add new content to the game:
 - I'll edit the appropriate Python file
 - The changes will take effect immediately!
 
-This is a living, breathing RPG that evolves based on the story we create together!"""
+This is a living, breathing RPG with realistic simulation that evolves based on the story we create together!"""
 
     def reload_modules(self):
         """Reload all game modules to pick up code changes"""
@@ -162,6 +208,9 @@ Description: {LOCATIONS['village']['description']}"""
     def process_action(self, action):
         """Process player action through Claude AI"""
 
+        # Get simulation state
+        sim_summary = self.simulation.get_simulation_summary()
+
         # Add context about current game state
         context = f"""
 Player action: {action}
@@ -178,7 +227,26 @@ Abilities: {[ability.name for ability in self.player.abilities]}
 
 Available locations: {self.game_state.world.discovered_locations}
 
-Process this action and narrate what happens. If combat should occur, say so clearly. If you want to add new content to the game (items, abilities, enemies), mention it and I'll modify the code!"""
+=== SIMULATION STATE ===
+{sim_summary}
+
+Player Conditions:
+- has_mana: {self.simulation.player_conditions.has_mana}
+- is_bleeding: {self.simulation.player_conditions.is_bleeding}
+- is_poisoned: {self.simulation.player_conditions.is_poisoned}
+- is_cursed: {self.simulation.player_conditions.is_cursed}
+- health_condition: {self.simulation.player_conditions.health_condition}/10
+- stamina: {self.simulation.player_conditions.stamina}/10
+
+World State:
+- Time: {self.simulation.world_state.time_of_day}
+- Weather: {self.simulation.world_state.weather}
+- Player Fame: {self.simulation.world_state.player_fame}
+- Village Safe: {self.simulation.world_state.village_safe}
+
+Process this action and narrate what happens. Update simulation variables as needed based on the player's action and its consequences. Mention any significant simulation changes in your narrative!
+
+If combat should occur, say so clearly. If you want to add new content to the game (items, abilities, enemies), mention it and I'll modify the code!"""
 
         self.conversation_history.append({
             "role": "user",
@@ -225,11 +293,56 @@ Process this action and narrate what happens. If combat should occur, say so cle
         self.game_state.save()
         print("💾 Game saved!")
 
+    def show_simulation(self):
+        """Display simulation state"""
+        print("\n" + "="*70)
+        print("  SIMULATION STATE (Claude manages this!)")
+        print("="*70)
+
+        # Player conditions
+        print("\n🧍 PLAYER CONDITIONS:")
+        conditions = self.simulation.player_conditions.get_active_conditions()
+        buffs = self.simulation.player_conditions.get_active_buffs()
+        if conditions:
+            print(f"  Active Conditions: {', '.join(conditions)}")
+        if buffs:
+            print(f"  Active Buffs: {', '.join(buffs)}")
+
+        print(f"  Has Mana: {'Yes' if self.simulation.player_conditions.has_mana else 'No'}")
+        print(f"  Health Condition: {self.simulation.player_conditions.health_condition}/10")
+        print(f"  Stamina: {self.simulation.player_conditions.stamina}/10")
+        print(f"  Sanity: {self.simulation.player_conditions.sanity}/10")
+
+        # World state
+        print("\n🌍 WORLD STATE:")
+        print(f"  Time: {self.simulation.world_state.time_of_day}")
+        print(f"  Weather: {self.simulation.world_state.weather}")
+        print(f"  Season: {self.simulation.world_state.season}")
+        print(f"  Player Fame: {self.simulation.world_state.player_fame}")
+        print(f"  Village Safe: {'Yes' if self.simulation.world_state.village_safe else 'No'}")
+        print(f"  Monsters Slain: {self.simulation.world_state.monsters_slain}")
+
+        # NPC relationships
+        if self.simulation.npc_relationships:
+            print("\n👥 NPC RELATIONSHIPS:")
+            for npc_id, rel in self.simulation.npc_relationships.items():
+                disposition = rel.get_overall_disposition()
+                print(f"\n  {rel.npc_name} ({disposition}):")
+                print(f"    Affection: {rel.affection}/10")
+                print(f"    Trust: {rel.trust}/10")
+                print(f"    Respect: {rel.respect}/10")
+                print(f"    Fear: {rel.fear}/10")
+                print(f"    Annoyance: {rel.annoyance}/10")
+                print(f"    Times Met: {rel.times_met}")
+
+        print("\n" + "="*70 + "\n")
+
     def show_help(self):
         """Show available commands"""
         print("""
 Available Commands:
 - status: Show your character status
+- simulation: View detailed simulation state (NPC emotions, world state, etc.)
 - inventory: View your inventory
 - abilities: List your abilities
 - save: Save the game
@@ -295,6 +408,9 @@ def main():
             break
         elif action.lower() == 'status':
             game.display_status()
+            continue
+        elif action.lower() in ['simulation', 'sim']:
+            game.show_simulation()
             continue
         elif action.lower() == 'help':
             game.show_help()
