@@ -2,7 +2,17 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- iOS Optimized Viewport -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+
+    <!-- iOS Web App Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Dynamic RPG">
+
+    <!-- Prevent iOS text size adjust -->
+    <meta name="format-detection" content="telephone=no">
+
     <title>Dynamic RPG - AI Game Master</title>
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <style>
@@ -10,62 +20,124 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            -webkit-tap-highlight-color: rgba(74, 158, 255, 0.3);
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            position: fixed;
+            -webkit-overflow-scrolling: touch;
         }
 
         body {
-            font-family: 'Courier New', monospace;
+            font-family: -apple-system, BlinkMacSystemFont, 'Courier New', monospace;
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
             color: #eee;
-            height: 100vh;
-            overflow: hidden;
+            /* iOS safe area support */
+            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
         }
 
         .game-container {
             display: grid;
-            grid-template-columns: 250px 1fr 250px;
-            grid-template-rows: 150px 1fr 180px;
-            gap: 10px;
-            padding: 10px;
+            gap: 8px;
+            padding: 8px;
             height: 100vh;
+            height: calc(var(--vh, 1vh) * 100);
         }
 
-        /* Character Stats Panel - Top */
+        /* Desktop Layout */
+        @media (min-width: 769px) {
+            .game-container {
+                grid-template-columns: 250px 1fr 250px;
+                grid-template-rows: 150px 1fr 180px;
+            }
+        }
+
+        /* Mobile/Tablet Layout */
+        @media (max-width: 768px) {
+            .game-container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto 1fr auto;
+            }
+
+            .left-sidebar, .right-sidebar {
+                display: none !important;
+            }
+
+            .stats-panel {
+                grid-row: 1;
+            }
+
+            .mobile-nav {
+                grid-row: 2;
+                display: flex !important;
+            }
+
+            .narrative-panel {
+                grid-row: 3;
+                grid-column: 1;
+            }
+
+            .input-panel {
+                grid-row: 4;
+                grid-column: 1;
+            }
+        }
+
+        /* Character Stats Panel */
         .stats-panel {
             grid-column: 1 / -1;
-            background: rgba(30, 30, 60, 0.9);
+            background: rgba(30, 30, 60, 0.95);
             border: 2px solid #4a9eff;
             border-radius: 10px;
-            padding: 15px;
+            padding: 10px;
             box-shadow: 0 0 20px rgba(74, 158, 255, 0.3);
         }
 
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            font-size: 14px;
+        }
+
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+                font-size: 12px;
+            }
         }
 
         .stat-item {
             display: flex;
             flex-direction: column;
-            gap: 5px;
+            gap: 4px;
         }
 
         .stat-label {
-            font-size: 12px;
+            font-size: 11px;
             color: #aaa;
             text-transform: uppercase;
         }
 
         .stat-value {
-            font-size: 24px;
+            font-size: 18px;
             font-weight: bold;
             color: #4a9eff;
         }
 
+        @media (max-width: 768px) {
+            .stat-value {
+                font-size: 16px;
+            }
+        }
+
         .stat-bar {
             width: 100%;
-            height: 20px;
+            height: 18px;
             background: rgba(0, 0, 0, 0.5);
             border: 1px solid #333;
             border-radius: 10px;
@@ -92,30 +164,54 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: bold;
             color: white;
             text-shadow: 1px 1px 2px black;
         }
 
-        /* Left Sidebar - Actions */
-        .left-sidebar {
-            grid-row: 2 / 3;
-            background: rgba(30, 30, 60, 0.9);
+        /* Mobile Navigation (hidden on desktop) */
+        .mobile-nav {
+            display: none;
+            gap: 8px;
+            padding: 8px;
+            background: rgba(30, 30, 60, 0.95);
             border: 2px solid #4a9eff;
             border-radius: 10px;
-            padding: 15px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .mobile-nav-btn {
+            min-width: 80px;
+            padding: 10px;
+            background: linear-gradient(135deg, #2a2a5e, #1a1a4e);
+            border: 2px solid #4a9eff;
+            color: #eee;
+            border-radius: 8px;
+            font-size: 12px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        /* Left Sidebar (hidden on mobile) */
+        .left-sidebar {
+            grid-row: 2 / 3;
+            background: rgba(30, 30, 60, 0.95);
+            border: 2px solid #4a9eff;
+            border-radius: 10px;
+            padding: 12px;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 8px;
         }
 
         .sidebar-title {
-            font-size: 18px;
+            font-size: 16px;
             font-weight: bold;
             color: #4a9eff;
             text-align: center;
-            padding-bottom: 10px;
+            padding-bottom: 8px;
             border-bottom: 1px solid #333;
         }
 
@@ -126,37 +222,45 @@
             padding: 12px;
             border-radius: 8px;
             cursor: pointer;
-            font-family: 'Courier New', monospace;
-            font-size: 14px;
+            font-family: inherit;
+            font-size: 13px;
             transition: all 0.3s;
             text-transform: uppercase;
-        }
-
-        .action-btn:hover {
-            background: linear-gradient(135deg, #3a3a6e, #2a2a5e);
-            border-color: #6ac5ff;
-            box-shadow: 0 0 15px rgba(74, 158, 255, 0.5);
+            min-height: 44px; /* iOS touch target */
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .action-btn:active {
-            transform: scale(0.95);
+            background: linear-gradient(135deg, #3a3a6e, #2a2a5e);
+            border-color: #6ac5ff;
+            transform: scale(0.98);
         }
 
-        /* Narrative Display - Center */
+        /* Narrative Display */
         .narrative-panel {
             grid-row: 2 / 3;
             grid-column: 2 / 3;
-            background: rgba(20, 20, 40, 0.95);
+            background: rgba(20, 20, 40, 0.98);
             border: 2px solid #4a9eff;
             border-radius: 10px;
-            padding: 20px;
+            padding: 15px;
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
             box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.5);
         }
 
+        @media (max-width: 768px) {
+            .narrative-panel {
+                padding: 10px;
+                font-size: 14px;
+            }
+        }
+
         .narrative-entry {
-            margin-bottom: 20px;
-            padding: 15px;
+            margin-bottom: 15px;
+            padding: 12px;
             background: rgba(40, 40, 80, 0.5);
             border-left: 3px solid #4a9eff;
             border-radius: 5px;
@@ -179,27 +283,28 @@
             background: rgba(80, 60, 40, 0.3);
         }
 
-        /* Right Sidebar - Info */
+        /* Right Sidebar (hidden on mobile) */
         .right-sidebar {
             grid-row: 2 / 3;
-            background: rgba(30, 30, 60, 0.9);
+            background: rgba(30, 30, 60, 0.95);
             border: 2px solid #4a9eff;
             border-radius: 10px;
-            padding: 15px;
+            padding: 12px;
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
         .info-section {
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
 
         .info-title {
-            font-size: 14px;
+            font-size: 13px;
             color: #4a9eff;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
             text-transform: uppercase;
             border-bottom: 1px solid #333;
-            padding-bottom: 5px;
+            padding-bottom: 4px;
         }
 
         .info-content {
@@ -208,27 +313,33 @@
             color: #ccc;
         }
 
-        /* Input Panel - Bottom */
+        /* Input Panel */
         .input-panel {
             grid-column: 1 / -1;
-            background: rgba(30, 30, 60, 0.9);
+            background: rgba(30, 30, 60, 0.95);
             border: 2px solid #4a9eff;
             border-radius: 10px;
-            padding: 15px;
+            padding: 10px;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 8px;
         }
 
         .input-label {
-            font-size: 14px;
+            font-size: 13px;
             color: #4a9eff;
             text-transform: uppercase;
         }
 
         .input-area {
             display: flex;
-            gap: 10px;
+            gap: 8px;
+        }
+
+        @media (max-width: 768px) {
+            .input-area {
+                flex-direction: column;
+            }
         }
 
         #action-input {
@@ -238,9 +349,10 @@
             color: #eee;
             padding: 12px;
             border-radius: 8px;
-            font-family: 'Courier New', monospace;
-            font-size: 14px;
+            font-family: inherit;
+            font-size: 16px; /* Prevent iOS zoom */
             resize: none;
+            min-height: 44px; /* iOS touch target */
         }
 
         #action-input:focus {
@@ -253,28 +365,26 @@
             background: linear-gradient(135deg, #4a9eff, #357abd);
             border: none;
             color: white;
-            padding: 12px 30px;
+            padding: 12px 24px;
             border-radius: 8px;
             cursor: pointer;
-            font-family: 'Courier New', monospace;
-            font-size: 14px;
+            font-family: inherit;
+            font-size: 15px;
             font-weight: bold;
             text-transform: uppercase;
             transition: all 0.3s;
-        }
-
-        #submit-btn:hover {
-            background: linear-gradient(135deg, #6ac5ff, #4a9eff);
-            box-shadow: 0 0 20px rgba(74, 158, 255, 0.5);
+            min-height: 44px; /* iOS touch target */
+            min-width: 100px;
         }
 
         #submit-btn:active {
-            transform: scale(0.95);
+            background: linear-gradient(135deg, #357abd, #2a5a8d);
+            transform: scale(0.98);
         }
 
         .quick-actions {
             display: flex;
-            gap: 10px;
+            gap: 8px;
             flex-wrap: wrap;
         }
 
@@ -282,14 +392,15 @@
             background: rgba(40, 40, 80, 0.8);
             border: 1px solid #4a9eff;
             color: #eee;
-            padding: 6px 12px;
+            padding: 8px 12px;
             border-radius: 5px;
             cursor: pointer;
             font-size: 12px;
             transition: all 0.2s;
+            min-height: 36px; /* iOS touch target */
         }
 
-        .quick-action:hover {
+        .quick-action:active {
             background: rgba(60, 60, 100, 0.8);
             border-color: #6ac5ff;
         }
@@ -302,10 +413,12 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.9);
+            background: rgba(0, 0, 0, 0.95);
             z-index: 1000;
             justify-content: center;
             align-items: center;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
         .modal.active {
@@ -316,25 +429,29 @@
             background: linear-gradient(135deg, #1a1a2e, #16213e);
             border: 3px solid #4a9eff;
             border-radius: 15px;
-            padding: 30px;
-            max-width: 500px;
+            padding: 25px;
+            max-width: 90%;
+            width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
             box-shadow: 0 0 50px rgba(74, 158, 255, 0.5);
         }
 
         .modal-title {
-            font-size: 28px;
+            font-size: 24px;
             color: #4a9eff;
             text-align: center;
             margin-bottom: 20px;
         }
 
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 18px;
         }
 
         .form-label {
             display: block;
-            font-size: 14px;
+            font-size: 13px;
             color: #4a9eff;
             margin-bottom: 8px;
             text-transform: uppercase;
@@ -347,8 +464,9 @@
             color: #eee;
             padding: 12px;
             border-radius: 8px;
-            font-family: 'Courier New', monospace;
-            font-size: 14px;
+            font-family: inherit;
+            font-size: 16px; /* Prevent iOS zoom */
+            min-height: 44px;
         }
 
         .form-input:focus {
@@ -358,7 +476,7 @@
 
         .class-selection {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
             gap: 10px;
         }
 
@@ -366,14 +484,19 @@
             background: rgba(40, 40, 80, 0.8);
             border: 2px solid #333;
             color: #eee;
-            padding: 15px;
+            padding: 15px 10px;
             border-radius: 8px;
             cursor: pointer;
             text-align: center;
             transition: all 0.3s;
+            min-height: 70px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
         }
 
-        .class-option:hover {
+        .class-option:active {
             border-color: #4a9eff;
             background: rgba(60, 60, 100, 0.8);
         }
@@ -383,9 +506,9 @@
             background: rgba(60, 100, 60, 0.5);
         }
 
-        /* Scrollbar Styling */
+        /* Scrollbar Styling (Desktop/Opera) */
         ::-webkit-scrollbar {
-            width: 10px;
+            width: 8px;
         }
 
         ::-webkit-scrollbar-track {
@@ -400,6 +523,24 @@
 
         ::-webkit-scrollbar-thumb:hover {
             background: #6ac5ff;
+        }
+
+        /* iOS specific fixes */
+        @supports (-webkit-touch-callout: none) {
+            body {
+                /* Fix for iOS Safari address bar */
+                min-height: -webkit-fill-available;
+            }
+
+            .game-container {
+                height: -webkit-fill-available;
+            }
+        }
+
+        /* Prevent text selection on buttons (better mobile UX) */
+        button, .action-btn, .quick-action, .class-option {
+            -webkit-user-select: none;
+            user-select: none;
         }
     </style>
 </head>
@@ -419,28 +560,28 @@
                 <div class="class-selection">
                     <div class="class-option selected" data-class="Warrior">
                         <strong>⚔️ Warrior</strong>
-                        <p style="font-size: 12px; margin-top: 5px;">Strong melee fighter</p>
+                        <p style="font-size: 11px; margin-top: 5px;">Melee fighter</p>
                     </div>
                     <div class="class-option" data-class="Mage">
                         <strong>🔮 Mage</strong>
-                        <p style="font-size: 12px; margin-top: 5px;">Powerful spellcaster</p>
+                        <p style="font-size: 11px; margin-top: 5px;">Spellcaster</p>
                     </div>
                     <div class="class-option" data-class="Rogue">
                         <strong>🗡️ Rogue</strong>
-                        <p style="font-size: 12px; margin-top: 5px;">Agile and quick</p>
+                        <p style="font-size: 11px; margin-top: 5px;">Agile</p>
                     </div>
                     <div class="class-option" data-class="Cleric">
                         <strong>✨ Cleric</strong>
-                        <p style="font-size: 12px; margin-top: 5px;">Healer and support</p>
+                        <p style="font-size: 11px; margin-top: 5px;">Healer</p>
                     </div>
                     <div class="class-option" data-class="Battlemage">
                         <strong>⚡ Battlemage</strong>
-                        <p style="font-size: 12px; margin-top: 5px;">Magic and melee</p>
+                        <p style="font-size: 11px; margin-top: 5px;">Hybrid</p>
                     </div>
                 </div>
             </div>
 
-            <button id="start-game-btn" class="action-btn" style="width: 100%; margin-top: 20px;">
+            <button id="start-game-btn" class="action-btn" style="width: 100%; margin-top: 15px;">
                 Start Adventure
             </button>
         </div>
@@ -468,7 +609,7 @@
                     <span class="stat-value" id="char-gold">100g</span>
                 </div>
             </div>
-            <div class="stats-grid" style="margin-top: 15px;">
+            <div class="stats-grid" style="margin-top: 10px;">
                 <div class="stat-item">
                     <span class="stat-label">Health</span>
                     <div class="stat-bar">
@@ -493,7 +634,16 @@
             </div>
         </div>
 
-        <!-- Left Sidebar -->
+        <!-- Mobile Navigation (visible on mobile only) -->
+        <div class="mobile-nav">
+            <button class="mobile-nav-btn" onclick="showInventory()">📦 Inventory</button>
+            <button class="mobile-nav-btn" onclick="showAbilities()">✨ Abilities</button>
+            <button class="mobile-nav-btn" onclick="showStats()">📊 Stats</button>
+            <button class="mobile-nav-btn" onclick="showSimulation()">🔬 Simulation</button>
+            <button class="mobile-nav-btn" onclick="saveGame()">💾 Save</button>
+        </div>
+
+        <!-- Left Sidebar (desktop only) -->
         <div class="left-sidebar">
             <div class="sidebar-title">⚔️ Actions</div>
             <button class="action-btn" onclick="showInventory()">📦 Inventory</button>
@@ -512,7 +662,7 @@
             </div>
         </div>
 
-        <!-- Right Sidebar -->
+        <!-- Right Sidebar (desktop only) -->
         <div class="right-sidebar">
             <div class="info-section">
                 <div class="info-title">🎯 Quick Stats</div>
@@ -546,12 +696,12 @@
         <div class="input-panel">
             <div class="input-label">🎭 What do you do?</div>
             <div class="input-area">
-                <textarea id="action-input" rows="3" placeholder="Type your action here and press Enter or click Submit..."></textarea>
+                <textarea id="action-input" rows="2" placeholder="Type your action here..."></textarea>
                 <button id="submit-btn" onclick="submitAction()">Submit</button>
             </div>
             <div class="quick-actions">
-                <div class="quick-action" onclick="quickAction('look around')">👀 Look Around</div>
-                <div class="quick-action" onclick="quickAction('check inventory')">🎒 Check Inventory</div>
+                <div class="quick-action" onclick="quickAction('look around')">👀 Look</div>
+                <div class="quick-action" onclick="quickAction('check inventory')">🎒 Inventory</div>
                 <div class="quick-action" onclick="quickAction('talk to someone')">💬 Talk</div>
                 <div class="quick-action" onclick="quickAction('explore')">🗺️ Explore</div>
             </div>
@@ -559,6 +709,15 @@
     </div>
 
     <script>
+        // iOS viewport height fix
+        function setVH() {
+            let vh = window.innerHeight * 0.01;
+            document.documentElement.style.setProperty('--vh', `${vh}px`);
+        }
+        setVH();
+        window.addEventListener('resize', setVH);
+        window.addEventListener('orientationchange', setVH);
+
         const socket = io();
         let selectedClass = 'Warrior';
 
@@ -603,6 +762,14 @@
             }
         });
 
+        // Touch-friendly submit on mobile
+        if ('ontouchstart' in window) {
+            document.getElementById('submit-btn').addEventListener('touchend', function(e) {
+                e.preventDefault();
+                submitAction();
+            });
+        }
+
         function submitAction() {
             const input = document.getElementById('action-input');
             const action = input.value.trim();
@@ -611,6 +778,11 @@
                 addNarrative(`> ${action}`, 'player-action');
                 socket.emit('player_action', { action: action });
                 input.value = '';
+
+                // Blur input on mobile to hide keyboard
+                if (window.innerWidth <= 768) {
+                    input.blur();
+                }
             }
         }
 
@@ -625,7 +797,11 @@
             entry.className = `narrative-entry ${type}`;
             entry.innerHTML = text.replace(/\n/g, '<br>');
             panel.appendChild(entry);
-            panel.scrollTop = panel.scrollHeight;
+
+            // Smooth scroll to bottom
+            setTimeout(() => {
+                panel.scrollTop = panel.scrollHeight;
+            }, 100);
         }
 
         function updateStats(stats) {
@@ -709,9 +885,9 @@
         function showHelp() {
             addNarrative(`
 <strong>🎮 How to Play</strong><br><br>
-<strong>Actions:</strong> Type what you want to do naturally in the text box<br>
-<strong>Quick Actions:</strong> Click the quick action buttons for common commands<br>
-<strong>Sidebar Buttons:</strong> Access inventory, abilities, stats, and simulation<br><br>
+<strong>Actions:</strong> Type what you want to do in the text box<br>
+<strong>Quick Actions:</strong> Tap the quick action buttons<br>
+<strong>Navigation:</strong> ${window.innerWidth <= 768 ? 'Use the horizontal menu at top' : 'Use sidebar buttons'}<br><br>
 <strong>Examples:</strong><br>
 • "I explore the dark forest"<br>
 • "I talk to the village elder"<br>
@@ -720,6 +896,14 @@
 Type 'simulation' to see all tracked variables!
             `, 'system');
         }
+
+        // Prevent iOS bounce scrolling
+        document.addEventListener('touchmove', function(e) {
+            if (e.target.closest('.narrative-panel') || e.target.closest('.modal-content')) {
+                return;
+            }
+            e.preventDefault();
+        }, { passive: false });
     </script>
 </body>
 </html>
