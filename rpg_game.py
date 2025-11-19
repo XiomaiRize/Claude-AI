@@ -22,6 +22,7 @@ from rpg_engine.character import Character
 from rpg_engine.combat import CombatSystem, create_enemy
 from rpg_engine.world import GameState, get_location, get_npc, LOCATIONS
 from rpg_engine.simulation import SimulationEngine
+from rpg_engine.personality import personality_setup_menu, get_default_personality
 from rpg_engine import items, abilities
 
 load_dotenv()
@@ -30,7 +31,7 @@ load_dotenv()
 class DynamicRPG:
     """Main game engine with dynamic code reloading"""
 
-    def __init__(self):
+    def __init__(self, custom_prompt=None):
         """Initialize the game"""
         # Setup Claude AI
         api_key = os.getenv('ANTHROPIC_API_KEY')
@@ -50,8 +51,8 @@ class DynamicRPG:
         # Simulation engine - YOU (Claude) manage this!
         self.simulation = SimulationEngine()
 
-        # System prompt for Claude
-        self.system_prompt = """You are an expert RPG Game Master for a dynamic text-based RPG with REALISTIC SIMULATION.
+        # System prompt for Claude - use custom or default
+        self.system_prompt = custom_prompt if custom_prompt else """You are an expert RPG Game Master for a dynamic text-based RPG with REALISTIC SIMULATION.
 
 Your role:
 1. Narrate the story with vivid, immersive descriptions
@@ -356,14 +357,22 @@ Or just type what you want to do naturally!
 
 def main():
     """Main game entry point"""
-    game = DynamicRPG()
-
     print("\n" + "="*70)
     print("  WELCOME TO DYNAMIC RPG")
     print("  An RPG where the AI Game Master can edit reality itself!")
     print("="*70)
 
+    # Personality configuration
+    print("\nFirst, let's configure the AI Game Master's personality...")
+    custom_prompt = personality_setup_menu()
+
+    # Create game with custom personality
+    game = DynamicRPG(custom_prompt=custom_prompt)
+
     # Character creation
+    print("\n" + "="*70)
+    print("  CHARACTER CREATION")
+    print("="*70)
     print("\nLet's create your character!")
     name = input("Character name: ").strip()
     if not name:
