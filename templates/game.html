@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic RPG - AI Game Master</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #eee;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .game-container {
+            display: grid;
+            grid-template-columns: 250px 1fr 250px;
+            grid-template-rows: 150px 1fr 180px;
+            gap: 10px;
+            padding: 10px;
+            height: 100vh;
+        }
+
+        /* Character Stats Panel - Top */
+        .stats-panel {
+            grid-column: 1 / -1;
+            background: rgba(30, 30, 60, 0.9);
+            border: 2px solid #4a9eff;
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 0 20px rgba(74, 158, 255, 0.3);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #aaa;
+            text-transform: uppercase;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4a9eff;
+        }
+
+        .stat-bar {
+            width: 100%;
+            height: 20px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid #333;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .stat-bar-fill {
+            height: 100%;
+            transition: width 0.3s ease;
+            border-radius: 10px;
+        }
+
+        .hp-bar { background: linear-gradient(90deg, #ff4444, #ff6666); }
+        .mp-bar { background: linear-gradient(90deg, #4444ff, #6666ff); }
+        .exp-bar { background: linear-gradient(90deg, #44ff44, #66ff66); }
+
+        .stat-bar-text {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 1px 1px 2px black;
+        }
+
+        /* Left Sidebar - Actions */
+        .left-sidebar {
+            grid-row: 2 / 3;
+            background: rgba(30, 30, 60, 0.9);
+            border: 2px solid #4a9eff;
+            border-radius: 10px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .sidebar-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #4a9eff;
+            text-align: center;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #333;
+        }
+
+        .action-btn {
+            background: linear-gradient(135deg, #2a2a5e, #1a1a4e);
+            border: 2px solid #4a9eff;
+            color: #eee;
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            transition: all 0.3s;
+            text-transform: uppercase;
+        }
+
+        .action-btn:hover {
+            background: linear-gradient(135deg, #3a3a6e, #2a2a5e);
+            border-color: #6ac5ff;
+            box-shadow: 0 0 15px rgba(74, 158, 255, 0.5);
+        }
+
+        .action-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* Narrative Display - Center */
+        .narrative-panel {
+            grid-row: 2 / 3;
+            grid-column: 2 / 3;
+            background: rgba(20, 20, 40, 0.95);
+            border: 2px solid #4a9eff;
+            border-radius: 10px;
+            padding: 20px;
+            overflow-y: auto;
+            box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .narrative-entry {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(40, 40, 80, 0.5);
+            border-left: 3px solid #4a9eff;
+            border-radius: 5px;
+            line-height: 1.6;
+            animation: fadeIn 0.5s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .narrative-entry.player-action {
+            border-left-color: #44ff44;
+            background: rgba(40, 80, 40, 0.3);
+        }
+
+        .narrative-entry.system {
+            border-left-color: #ff9944;
+            background: rgba(80, 60, 40, 0.3);
+        }
+
+        /* Right Sidebar - Info */
+        .right-sidebar {
+            grid-row: 2 / 3;
+            background: rgba(30, 30, 60, 0.9);
+            border: 2px solid #4a9eff;
+            border-radius: 10px;
+            padding: 15px;
+            overflow-y: auto;
+        }
+
+        .info-section {
+            margin-bottom: 20px;
+        }
+
+        .info-title {
+            font-size: 14px;
+            color: #4a9eff;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            border-bottom: 1px solid #333;
+            padding-bottom: 5px;
+        }
+
+        .info-content {
+            font-size: 12px;
+            line-height: 1.4;
+            color: #ccc;
+        }
+
+        /* Input Panel - Bottom */
+        .input-panel {
+            grid-column: 1 / -1;
+            background: rgba(30, 30, 60, 0.9);
+            border: 2px solid #4a9eff;
+            border-radius: 10px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .input-label {
+            font-size: 14px;
+            color: #4a9eff;
+            text-transform: uppercase;
+        }
+
+        .input-area {
+            display: flex;
+            gap: 10px;
+        }
+
+        #action-input {
+            flex: 1;
+            background: rgba(20, 20, 40, 0.9);
+            border: 2px solid #333;
+            color: #eee;
+            padding: 12px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            resize: none;
+        }
+
+        #action-input:focus {
+            outline: none;
+            border-color: #4a9eff;
+            box-shadow: 0 0 10px rgba(74, 158, 255, 0.3);
+        }
+
+        #submit-btn {
+            background: linear-gradient(135deg, #4a9eff, #357abd);
+            border: none;
+            color: white;
+            padding: 12px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            font-weight: bold;
+            text-transform: uppercase;
+            transition: all 0.3s;
+        }
+
+        #submit-btn:hover {
+            background: linear-gradient(135deg, #6ac5ff, #4a9eff);
+            box-shadow: 0 0 20px rgba(74, 158, 255, 0.5);
+        }
+
+        #submit-btn:active {
+            transform: scale(0.95);
+        }
+
+        .quick-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .quick-action {
+            background: rgba(40, 40, 80, 0.8);
+            border: 1px solid #4a9eff;
+            color: #eee;
+            padding: 6px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .quick-action:hover {
+            background: rgba(60, 60, 100, 0.8);
+            border-color: #6ac5ff;
+        }
+
+        /* Character Creation Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            border: 3px solid #4a9eff;
+            border-radius: 15px;
+            padding: 30px;
+            max-width: 500px;
+            box-shadow: 0 0 50px rgba(74, 158, 255, 0.5);
+        }
+
+        .modal-title {
+            font-size: 28px;
+            color: #4a9eff;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 14px;
+            color: #4a9eff;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+        .form-input {
+            width: 100%;
+            background: rgba(20, 20, 40, 0.9);
+            border: 2px solid #333;
+            color: #eee;
+            padding: 12px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #4a9eff;
+        }
+
+        .class-selection {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .class-option {
+            background: rgba(40, 40, 80, 0.8);
+            border: 2px solid #333;
+            color: #eee;
+            padding: 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .class-option:hover {
+            border-color: #4a9eff;
+            background: rgba(60, 60, 100, 0.8);
+        }
+
+        .class-option.selected {
+            border-color: #44ff44;
+            background: rgba(60, 100, 60, 0.5);
+        }
+
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(20, 20, 40, 0.5);
+            border-radius: 5px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #4a9eff;
+            border-radius: 5px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #6ac5ff;
+        }
+    </style>
+</head>
+<body>
+    <!-- Character Creation Modal -->
+    <div id="char-creation-modal" class="modal active">
+        <div class="modal-content">
+            <h1 class="modal-title">⚔️ Create Your Hero ⚔️</h1>
+
+            <div class="form-group">
+                <label class="form-label">Character Name</label>
+                <input type="text" id="char-name" class="form-input" placeholder="Enter your name..." value="Hero">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Choose Your Class</label>
+                <div class="class-selection">
+                    <div class="class-option selected" data-class="Warrior">
+                        <strong>⚔️ Warrior</strong>
+                        <p style="font-size: 12px; margin-top: 5px;">Strong melee fighter</p>
+                    </div>
+                    <div class="class-option" data-class="Mage">
+                        <strong>🔮 Mage</strong>
+                        <p style="font-size: 12px; margin-top: 5px;">Powerful spellcaster</p>
+                    </div>
+                    <div class="class-option" data-class="Rogue">
+                        <strong>🗡️ Rogue</strong>
+                        <p style="font-size: 12px; margin-top: 5px;">Agile and quick</p>
+                    </div>
+                    <div class="class-option" data-class="Cleric">
+                        <strong>✨ Cleric</strong>
+                        <p style="font-size: 12px; margin-top: 5px;">Healer and support</p>
+                    </div>
+                    <div class="class-option" data-class="Battlemage">
+                        <strong>⚡ Battlemage</strong>
+                        <p style="font-size: 12px; margin-top: 5px;">Magic and melee</p>
+                    </div>
+                </div>
+            </div>
+
+            <button id="start-game-btn" class="action-btn" style="width: 100%; margin-top: 20px;">
+                Start Adventure
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Game Container -->
+    <div class="game-container">
+        <!-- Character Stats Panel -->
+        <div class="stats-panel">
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <span class="stat-label">Character</span>
+                    <span class="stat-value" id="char-name-display">Loading...</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Level</span>
+                    <span class="stat-value" id="char-level">1</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Class</span>
+                    <span class="stat-value" id="char-class">Warrior</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Gold</span>
+                    <span class="stat-value" id="char-gold">100g</span>
+                </div>
+            </div>
+            <div class="stats-grid" style="margin-top: 15px;">
+                <div class="stat-item">
+                    <span class="stat-label">Health</span>
+                    <div class="stat-bar">
+                        <div class="stat-bar-fill hp-bar" id="hp-bar" style="width: 100%;"></div>
+                        <div class="stat-bar-text" id="hp-text">100/100</div>
+                    </div>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Mana</span>
+                    <div class="stat-bar">
+                        <div class="stat-bar-fill mp-bar" id="mp-bar" style="width: 100%;"></div>
+                        <div class="stat-bar-text" id="mp-text">50/50</div>
+                    </div>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Experience</span>
+                    <div class="stat-bar">
+                        <div class="stat-bar-fill exp-bar" id="exp-bar" style="width: 0%;"></div>
+                        <div class="stat-bar-text" id="exp-text">0/100</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Left Sidebar -->
+        <div class="left-sidebar">
+            <div class="sidebar-title">⚔️ Actions</div>
+            <button class="action-btn" onclick="showInventory()">📦 Inventory</button>
+            <button class="action-btn" onclick="showAbilities()">✨ Abilities</button>
+            <button class="action-btn" onclick="showStats()">📊 Stats</button>
+            <button class="action-btn" onclick="showSimulation()">🔬 Simulation</button>
+            <button class="action-btn" onclick="saveGame()">💾 Save</button>
+            <button class="action-btn" onclick="showHelp()">❓ Help</button>
+        </div>
+
+        <!-- Narrative Display -->
+        <div class="narrative-panel" id="narrative-panel">
+            <div class="narrative-entry system">
+                <strong>🎮 Dynamic RPG - AI Game Master</strong><br>
+                Create your character to begin your adventure!
+            </div>
+        </div>
+
+        <!-- Right Sidebar -->
+        <div class="right-sidebar">
+            <div class="info-section">
+                <div class="info-title">🎯 Quick Stats</div>
+                <div class="info-content" id="quick-stats">
+                    <div>STR: <span id="stat-str">10</span></div>
+                    <div>AGI: <span id="stat-agi">10</span></div>
+                    <div>INT: <span id="stat-int">10</span></div>
+                    <div>DEF: <span id="stat-def">5</span></div>
+                    <div>MDEF: <span id="stat-mdef">5</span></div>
+                </div>
+            </div>
+
+            <div class="info-section">
+                <div class="info-title">🌍 World State</div>
+                <div class="info-content" id="world-state">
+                    <div>Time: <span id="world-time">Midday</span></div>
+                    <div>Weather: <span id="world-weather">Clear</span></div>
+                    <div>Fame: <span id="world-fame">0</span></div>
+                </div>
+            </div>
+
+            <div class="info-section">
+                <div class="info-title">💭 Conditions</div>
+                <div class="info-content" id="conditions">
+                    No active conditions
+                </div>
+            </div>
+        </div>
+
+        <!-- Input Panel -->
+        <div class="input-panel">
+            <div class="input-label">🎭 What do you do?</div>
+            <div class="input-area">
+                <textarea id="action-input" rows="3" placeholder="Type your action here and press Enter or click Submit..."></textarea>
+                <button id="submit-btn" onclick="submitAction()">Submit</button>
+            </div>
+            <div class="quick-actions">
+                <div class="quick-action" onclick="quickAction('look around')">👀 Look Around</div>
+                <div class="quick-action" onclick="quickAction('check inventory')">🎒 Check Inventory</div>
+                <div class="quick-action" onclick="quickAction('talk to someone')">💬 Talk</div>
+                <div class="quick-action" onclick="quickAction('explore')">🗺️ Explore</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        let selectedClass = 'Warrior';
+
+        // Character Creation
+        document.querySelectorAll('.class-option').forEach(option => {
+            option.addEventListener('click', function() {
+                document.querySelectorAll('.class-option').forEach(opt => opt.classList.remove('selected'));
+                this.classList.add('selected');
+                selectedClass = this.dataset.class;
+            });
+        });
+
+        document.getElementById('start-game-btn').addEventListener('click', function() {
+            const name = document.getElementById('char-name').value || 'Hero';
+            socket.emit('create_character', { name: name, class: selectedClass });
+        });
+
+        // Socket Events
+        socket.on('connected', (data) => {
+            console.log('Connected to server:', data.session_id);
+        });
+
+        socket.on('game_started', (data) => {
+            document.getElementById('char-creation-modal').classList.remove('active');
+            addNarrative(data.narrative, 'system');
+            updateStats(data.stats);
+        });
+
+        socket.on('action_result', (data) => {
+            addNarrative(data.narrative, 'gm');
+            updateStats(data.stats);
+            if (data.simulation) {
+                updateSimulation(data.simulation);
+            }
+        });
+
+        // Input Handling
+        document.getElementById('action-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                submitAction();
+            }
+        });
+
+        function submitAction() {
+            const input = document.getElementById('action-input');
+            const action = input.value.trim();
+
+            if (action) {
+                addNarrative(`> ${action}`, 'player-action');
+                socket.emit('player_action', { action: action });
+                input.value = '';
+            }
+        }
+
+        function quickAction(action) {
+            document.getElementById('action-input').value = action;
+            submitAction();
+        }
+
+        function addNarrative(text, type = '') {
+            const panel = document.getElementById('narrative-panel');
+            const entry = document.createElement('div');
+            entry.className = `narrative-entry ${type}`;
+            entry.innerHTML = text.replace(/\n/g, '<br>');
+            panel.appendChild(entry);
+            panel.scrollTop = panel.scrollHeight;
+        }
+
+        function updateStats(stats) {
+            if (!stats) return;
+
+            document.getElementById('char-name-display').textContent = stats.name;
+            document.getElementById('char-level').textContent = stats.level;
+            document.getElementById('char-class').textContent = stats.class;
+            document.getElementById('char-gold').textContent = `${stats.gold}g`;
+
+            // HP Bar
+            const hpPercent = (stats.hp / stats.max_hp) * 100;
+            document.getElementById('hp-bar').style.width = `${hpPercent}%`;
+            document.getElementById('hp-text').textContent = `${stats.hp}/${stats.max_hp}`;
+
+            // MP Bar
+            const mpPercent = (stats.mp / stats.max_mp) * 100;
+            document.getElementById('mp-bar').style.width = `${mpPercent}%`;
+            document.getElementById('mp-text').textContent = `${stats.mp}/${stats.max_mp}`;
+
+            // EXP Bar
+            const expNeeded = stats.level * 100;
+            const expPercent = (stats.exp / expNeeded) * 100;
+            document.getElementById('exp-bar').style.width = `${expPercent}%`;
+            document.getElementById('exp-text').textContent = `${stats.exp}/${expNeeded}`;
+
+            // Quick Stats
+            document.getElementById('stat-str').textContent = stats.stats.str;
+            document.getElementById('stat-agi').textContent = stats.stats.agi;
+            document.getElementById('stat-int').textContent = stats.stats.int;
+            document.getElementById('stat-def').textContent = stats.stats.def;
+            document.getElementById('stat-mdef').textContent = stats.stats.mdef;
+        }
+
+        function updateSimulation(sim) {
+            // Update world state
+            if (sim.world_state && sim.world_state.environment) {
+                document.getElementById('world-time').textContent = sim.world_state.environment.time;
+                document.getElementById('world-weather').textContent = sim.world_state.environment.weather;
+            }
+            if (sim.world_state && sim.world_state.reputation) {
+                document.getElementById('world-fame').textContent = sim.world_state.reputation.fame;
+            }
+
+            // Update conditions
+            const conditionsEl = document.getElementById('conditions');
+            if (sim.player_conditions && sim.player_conditions.active_conditions) {
+                const conditions = sim.player_conditions.active_conditions;
+                const buffs = sim.player_conditions.active_buffs || [];
+                const all = [...conditions, ...buffs];
+
+                if (all.length > 0) {
+                    conditionsEl.innerHTML = all.join('<br>');
+                } else {
+                    conditionsEl.textContent = 'No active conditions';
+                }
+            }
+        }
+
+        // Action Buttons
+        function showInventory() {
+            quickAction('check my inventory');
+        }
+
+        function showAbilities() {
+            quickAction('list my abilities');
+        }
+
+        function showStats() {
+            quickAction('show my full stats');
+        }
+
+        function showSimulation() {
+            quickAction('show simulation state');
+        }
+
+        function saveGame() {
+            addNarrative('💾 Game saved!', 'system');
+        }
+
+        function showHelp() {
+            addNarrative(`
+<strong>🎮 How to Play</strong><br><br>
+<strong>Actions:</strong> Type what you want to do naturally in the text box<br>
+<strong>Quick Actions:</strong> Click the quick action buttons for common commands<br>
+<strong>Sidebar Buttons:</strong> Access inventory, abilities, stats, and simulation<br><br>
+<strong>Examples:</strong><br>
+• "I explore the dark forest"<br>
+• "I talk to the village elder"<br>
+• "I attack the goblin"<br>
+• "I cast fireball"<br><br>
+Type 'simulation' to see all tracked variables!
+            `, 'system');
+        }
+    </script>
+</body>
+</html>
