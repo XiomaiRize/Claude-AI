@@ -35,12 +35,16 @@ class WebRPG:
     def __init__(self, session_id, custom_prompt=None):
         self.session_id = session_id
 
-        # Setup Claude AI
+        # Setup Claude AI (optional - demo mode if not available)
         api_key = os.getenv('ANTHROPIC_API_KEY')
-        if not api_key:
-            raise Exception("ANTHROPIC_API_KEY not found!")
+        self.demo_mode = not api_key
 
-        self.client = Anthropic(api_key=api_key)
+        if api_key:
+            self.client = Anthropic(api_key=api_key)
+        else:
+            self.client = None
+            print("⚠️  Running in DEMO MODE - No API key found")
+
         self.conversation_history = []
 
         # Game state
@@ -83,6 +87,26 @@ class WebRPG:
         """Initialize game with opening narrative"""
         self.create_character(character_name, character_class)
 
+        # Demo mode - return static narrative
+        if self.demo_mode:
+            narrative = f"""🎮 **DEMO MODE** - Interface Testing 🎮
+
+Welcome, {character_name} the {character_class}!
+
+You stand at the edge of {LOCATIONS['village']['name']}, a peaceful settlement nestled in a verdant valley. The morning sun casts long shadows across cobblestone streets as villagers begin their daily routines.
+
+An elderly merchant waves to you from his cart. "Ah, another adventurer! We've had strange reports from the forest lately. Perhaps you could investigate?"
+
+**This is DEMO MODE** - The full AI game master requires an Anthropic API key. However, you can:
+✓ Test the interface layout and responsiveness
+✓ Try all the buttons and navigation
+✓ Create characters and explore the UI
+✓ See how it looks on your iOS device
+
+Type any action to see a demo response, or ask about setting up the full AI experience!"""
+            return narrative
+
+        # Full AI mode
         opening_prompt = f"""The player has created a character:
 Name: {character_name}
 Class: {character_class}
@@ -114,6 +138,59 @@ Description: {LOCATIONS['village']['description']}"""
 
     def process_action(self, action):
         """Process player action and get AI response"""
+
+        # Demo mode - return demo responses
+        if self.demo_mode:
+            action_lower = action.lower()
+
+            if "help" in action_lower or "api" in action_lower:
+                return """📋 **Setting Up Full AI Mode**
+
+To enable the full AI game master experience, you need an Anthropic API key:
+
+1. Get an API key from: https://console.anthropic.com/settings/keys
+2. Create a `.env` file in the game directory
+3. Add: `ANTHROPIC_API_KEY=your-key-here`
+4. Restart the server
+
+For now, enjoy testing the interface! All buttons, navigation, and UI elements are fully functional."""
+
+            elif "inventory" in action_lower or "bag" in action_lower:
+                inv_items = [item['name'] for item in self.player.inventory]
+                return f"""🎒 **Inventory Check** (Demo)
+
+You rummage through your pack and find:
+{chr(10).join('• ' + item for item in inv_items)}
+
+Gold: {self.player.gold}g
+
+In full mode, the AI would create rich descriptions and let you interact with items dynamically!"""
+
+            elif "look" in action_lower or "around" in action_lower:
+                return """👀 **Looking Around** (Demo)
+
+The village square bustles with activity. You notice:
+• A weathered notice board with various quests
+• A blacksmith's forge, smoke rising from the chimney
+• An old temple with mysterious symbols
+• Merchants selling wares from colorful stalls
+
+The interface is working perfectly! Try the sidebar buttons or type other actions."""
+
+            else:
+                return f"""⚔️ **Demo Response**
+
+You attempt to: "{action}"
+
+The interface registered your input successfully! In full AI mode, I would:
+• Understand your action contextually
+• Update NPC emotions and world state
+• Create dynamic story branches
+• Track simulation variables in real-time
+
+Try clicking the buttons on the sidebar (or mobile nav menu) to test all features!"""
+
+        # Full AI mode
         sim_summary = self.simulation.get_simulation_summary()
 
         context = f"""
